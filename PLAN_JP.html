@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>プロジェクト企画書: 在日中国人向け AI 不動産アドバイザー (House Calc)</title>
+<style>
+  @page { size: A4; margin: 20mm; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+    color: #1a1a1a;
+    line-height: 1.8;
+    font-size: 10.5pt;
+    padding: 40px 50px;
+    max-width: 210mm;
+    margin: 0 auto;
+  }
+
+  /* Cover section */
+  .cover {
+    text-align: center;
+    padding: 60px 0 40px;
+    border-bottom: 3px solid #2563eb;
+    margin-bottom: 40px;
+  }
+  .cover h1 {
+    font-size: 22pt;
+    color: #1e3a5f;
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+  }
+  .cover .subtitle {
+    font-size: 13pt;
+    color: #4b5563;
+    margin-bottom: 24px;
+  }
+  .cover .meta {
+    font-size: 9pt;
+    color: #9ca3af;
+  }
+
+  /* Section headers */
+  h2 {
+    font-size: 14pt;
+    color: #1e3a5f;
+    border-left: 4px solid #2563eb;
+    padding-left: 12px;
+    margin-top: 36px;
+    margin-bottom: 16px;
+    page-break-after: avoid;
+  }
+  h3 {
+    font-size: 11pt;
+    color: #374151;
+    margin-top: 24px;
+    margin-bottom: 10px;
+    page-break-after: avoid;
+  }
+
+  /* Body text */
+  p { margin-bottom: 12px; }
+  strong { color: #1e3a5f; }
+
+  /* Highlight box */
+  .highlight {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin: 16px 0;
+  }
+  .highlight .label {
+    font-size: 9pt;
+    color: #2563eb;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+
+  /* Lists */
+  ul, ol { margin: 8px 0 16px 24px; }
+  li { margin-bottom: 6px; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 20px;
+    font-size: 9.5pt;
+  }
+  th {
+    background: #1e3a5f;
+    color: white;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 12px;
+  }
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  tr:nth-child(even) td { background: #f9fafb; }
+  tr:hover td { background: #f0f4ff; }
+
+  /* Code blocks */
+  pre {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 14px 18px;
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 9pt;
+    line-height: 1.6;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    page-break-inside: avoid;
+  }
+
+  /* Architecture diagram */
+  .arch-diagram {
+    background: #f0f4ff;
+    border: 2px solid #93c5fd;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 16px 0;
+    text-align: center;
+    font-family: "SF Mono", "Menlo", monospace;
+    font-size: 9pt;
+    white-space: pre;
+    line-height: 1.5;
+    page-break-inside: avoid;
+  }
+
+  /* Comparison table special */
+  .comparison th { text-align: center; }
+  .comparison td:nth-child(2),
+  .comparison td:nth-child(3) { text-align: right; }
+  .comparison tr:last-child td {
+    font-weight: bold;
+    border-top: 2px solid #1e3a5f;
+    background: #eff6ff;
+  }
+
+  /* Risk table */
+  .risk-low { color: #059669; font-weight: bold; }
+  .risk-med { color: #d97706; font-weight: bold; }
+  .risk-high { color: #dc2626; font-weight: bold; }
+
+  /* Page breaks */
+  .page-break { page-break-before: always; }
+
+  /* Footer */
+  .footer {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+    text-align: center;
+    font-size: 8.5pt;
+    color: #9ca3af;
+  }
+
+  /* Badge */
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 8.5pt;
+    font-weight: 600;
+  }
+  .badge-blue { background: #dbeafe; color: #1d4ed8; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-yellow { background: #fef3c7; color: #92400e; }
+</style>
+</head>
+<body>
+
+<!-- Cover -->
+<div class="cover">
+  <h1>プロジェクト企画書</h1>
+  <div class="subtitle">在日中国人向け AI 不動産アドバイザー<br><span style="font-size:11pt; color:#6b7280;">House Calc</span></div>
+  <div class="meta">作成日: 2026年3月28日 &nbsp;|&nbsp; ステータス: DRAFT &nbsp;|&nbsp; バージョン: 1.0</div>
+</div>
+
+<!-- Overview -->
+<h2>1. プロジェクト概要</h2>
+<p>在日中国人向けのスマートフォンアプリ。ユーザーが「賃貸」または「購入」モードを選択後、不動産サイトの物件情報をスクリーンショットで撮影すると、AIが自動的に情報を読み取り、対話形式で個人情報をヒアリングした上で、<strong>その物件の月額費用の完全な内訳</strong>を算出する。「購入 vs 賃貸」の比較ツールではなく、すでに決断したユーザーが具体的なコストを把握するためのツール。</p>
+
+<div class="highlight">
+  <div class="label">コンセプト</div>
+  <strong>「グループチャットの不動産に詳しい友人」を置き換える</strong>
+</div>
+
+<h3>2つのモード</h3>
+<table>
+  <tr><th style="width:15%">モード</th><th>計算内容</th></tr>
+  <tr><td><strong>賃貸</strong></td><td>家賃 + 管理費 + 更新料按分 + 保険 + 保証会社 = <strong>毎月の実質支出</strong> + 初期費用総額</td></tr>
+  <tr><td><strong>購入</strong></td><td>ローン返済 + 管理費 + 修繕積立金 + 固都税 + 保険 = <strong>毎月の実質支出</strong> + 初期費用総額</td></tr>
+</table>
+
+<h2>2. ターゲットユーザー</h2>
+<ul>
+  <li>日本在住の中国語話者（就労ビザ・永住権・留学生など）</li>
+  <li>賃貸または購入を決めた上で、具体的な物件の実質月額コストを知りたい方</li>
+  <li>日本の不動産費用構造に詳しくなく、中国語での説明を必要とする方</li>
+</ul>
+
+<h2>3. コア機能（MVP）</h2>
+<table>
+  <tr><th style="width:30%">機能</th><th>説明</th></tr>
+  <tr><td><strong>モード選択</strong></td><td>「賃貸」または「購入」を選択し、対応する計算フローに進む</td></tr>
+  <tr><td><strong>スクリーンショット認識</strong></td><td>ユーザーが物件画面を撮影/選択 → AIがモードに応じた情報を自動抽出</td></tr>
+  <tr><td><strong>対話型ヒアリング</strong></td><td>AIが中国語でモード別の個人情報を質問（購入：頭金・ローン年数、賃貸：敷金・礼金等）</td></tr>
+  <tr><td><strong>費用明細レポート</strong></td><td>その物件の月額支出完全内訳 + 初期費用 + 長期累計</td></tr>
+  <tr><td><strong>履歴管理</strong></td><td>直近20件の計算結果をローカル保存</td></tr>
+</table>
+
+<h2>4. 技術アーキテクチャ</h2>
+
+<div class="arch-diagram">┌──────────────────────────────────────────┐
+│          Expo App (React Native)          │
+├───────────┬──────────┬─────────┬─────────┤
+│モード選択│スクショ│対話UI│費用明細│ 履歴  │
+├───────────┴──────────┴─────────┴─────────┤
+│        ローカル状態管理 (AsyncStorage)       │
+├────────────┬─────────────────────────────┤
+│  費用計算    │   Claude Sonnet 4.6 API     │
+│ (TypeScript  │   (Vision + Chat)           │
+│  決定的処理) │                             │
+└────────────┴─────────────────────────────┘</div>
+
+<h3>主要な設計判断</h3>
+<ul>
+  <li><strong>費用計算は決定的なTypeScriptコード</strong>で実行（LLM非依存 → 正確性 + コスト抑制）</li>
+  <li>LLMの役割：スクリーンショット認識 + 自然言語対話のみ</li>
+  <li>バックエンドサーバー不要、API直接呼び出し（MVP段階）</li>
+  <li>金利デフォルト 0.475%（変動金利）、固定資産税評価額 = 市場価格 × 70%</li>
+</ul>
+
+<div class="page-break"></div>
+
+<h2>5. 開発計画</h2>
+
+<h3>Phase 1: プロジェクト構築（Day 1 午前）</h3>
+<table>
+  <tr><th>タスク</th><th>成果物</th><th>予定時間</th></tr>
+  <tr><td>Expoプロジェクト初期化</td><td>実行可能な空のApp</td><td>15分</td></tr>
+  <tr><td>TypeScript + 基本ナビゲーション設定</td><td>Tab ナビゲーション構造</td><td>15分</td></tr>
+  <tr><td>Claude API SDK統合</td><td>API呼び出しラッパー</td><td>30分</td></tr>
+  <tr><td>スクショ選択機能（expo-image-picker）</td><td>撮影/アルバムから選択</td><td>30分</td></tr>
+</table>
+
+<h3>Phase 2: スクリーンショット認識（Day 1 午後）</h3>
+<table>
+  <tr><th>タスク</th><th>成果物</th><th>予定時間</th></tr>
+  <tr><td>Vision API プロンプト設計</td><td>構造化抽出プロンプト</td><td>30分</td></tr>
+  <tr><td>SUUMO/HOME'S/アットホーム スクショテスト</td><td>精度評価レポート</td><td>1時間</td></tr>
+  <tr><td>認識結果表示 + 手動修正UI</td><td>編集可能なフィールドカード</td><td>30分</td></tr>
+  <tr><td>フォールバック手動入力フォーム</td><td>完全入力フォーム</td><td>30分</td></tr>
+</table>
+
+<h3>Phase 3: 費用計算エンジン（Day 2 午前）</h3>
+<table>
+  <tr><th>タスク</th><th>成果物</th><th>予定時間</th></tr>
+  <tr><td>ローン月額返済計算（元利均等返済）</td><td>calcMonthlyPayment()</td><td>15分</td></tr>
+  <tr><td>購入側費用モデル</td><td>管理費/修繕/固都税/保険/団信</td><td>45分</td></tr>
+  <tr><td>賃貸側費用モデル</td><td>家賃/共益費/更新料/保証/保険</td><td>30分</td></tr>
+  <tr><td>初期費用計算</td><td>仲介/登記/取得税/敷金/礼金</td><td>30分</td></tr>
+  <tr><td>10年/20年長期比較</td><td>calcLongTermComparison()</td><td>30分</td></tr>
+</table>
+
+<h3>Phase 4: 対話フロー（Day 2 午後）</h3>
+<table>
+  <tr><th>タスク</th><th>成果物</th><th>予定時間</th></tr>
+  <tr><td>対話UI（チャット画面）</td><td>吹き出し式対話コンポーネント</td><td>45分</td></tr>
+  <tr><td>System prompt + デシジョンツリー</td><td>AIヒアリングロジック</td><td>30分</td></tr>
+  <tr><td>ユーザー入力収集 → 計算トリガー</td><td>対話から結果までの完全フロー</td><td>30分</td></tr>
+</table>
+
+<h3>Phase 5: 比較レポート + 仕上げ（Day 3）</h3>
+<table>
+  <tr><th>タスク</th><th>成果物</th><th>予定時間</th></tr>
+  <tr><td>費用明細UI（購入/賃貸 各1セット）</td><td>テーブル + 可視化グラフ</td><td>1時間</td></tr>
+  <tr><td>初期費用明細ページ</td><td>展開可能な費用リスト</td><td>30分</td></tr>
+  <tr><td>モード選択トップページ</td><td>賃貸/購入の2つの入口</td><td>15分</td></tr>
+  <tr><td>履歴機能</td><td>一覧 + 詳細閲覧</td><td>30分</td></tr>
+  <tr><td>Appアイコン + スプラッシュ画面</td><td>ブランドビジュアル</td><td>15分</td></tr>
+  <tr><td>UI全体の仕上げ + 中国語コピー</td><td>完全なユーザー体験</td><td>1時間</td></tr>
+  <tr><td>TestFlightビルド + 配布</td><td>テスト可能なipa</td><td>30分</td></tr>
+</table>
+
+<div class="highlight">
+  <div class="label">合計開発期間</div>
+  <strong>約3日間</strong>（CC+gstack使用時）
+</div>
+
+<div class="page-break"></div>
+
+<h2>6. 費用計算モデル詳細（コアIP）</h2>
+
+<h3>購入側：月額支出</h3>
+<pre>月額返済額  = 元利均等返済（借入額, 金利0.475%, 返済年数）
+管理費      = スクショから抽出
+修繕積立金  = スクショから抽出（固定値）
+固定資産税/月 = (市場価格 × 0.70 × 0.014) / 12
+都市計画税/月 = (市場価格 × 0.70 × 0.003) / 12
+火災保険/月  = 専有面積 × 350円 / 12（概算）
+団信       = 金利に含む（変動金利は通常含む）</pre>
+
+<h3>購入側：初期費用</h3>
+<pre>仲介手数料      = 物件価格 × 3% + 6万円 + 消費税10%
+登録免許税      = 評価額 × 0.3%（住宅軽減）
+不動産取得税    = 評価額 × 3%（住宅軽減後）
+印紙税         = 1万〜6万円（価格帯別）
+司法書士報酬    = 10万〜15万円（概算）
+ローン事務手数料 = 借入額 × 2.2%</pre>
+
+<h3>賃貸側：月額支出</h3>
+<pre>家賃          = ユーザー入力
+管理費/共益費   = 物件情報に含まれる場合あり、デフォルト0
+火災保険/月    = 約1.5万円/年 / 12 = ¥1,250
+更新料/月按分  = 家賃 × 1 / 24（2年に1回）
+保証会社/月    = 家賃 × 0.5 / 12（年次更新50%）</pre>
+
+<h3>賃貸側：初期費用</h3>
+<pre>敷金          = 家賃 × 1〜2ヶ月（デフォルト1）
+礼金          = 家賃 × 0〜1ヶ月（デフォルト1）
+仲介手数料     = 家賃 × 1.1（税込）
+火災保険      = 約1.5万円/年
+保証会社初回   = 家賃 × 50%
+鍵交換        = 約1.5万〜2万円</pre>
+
+<h2>7. マイルストーン</h2>
+<table>
+  <tr><th>マイルストーン</th><th>目標時期</th><th>検証基準</th></tr>
+  <tr><td><strong>M1:</strong> スクショ認識POC</td><td>第1週</td><td>SUUMOスクショの認識精度 > 80%</td></tr>
+  <tr><td><strong>M2:</strong> 完全な計算フロー</td><td>第1週</td><td>スクショ → 対話 → 比較レポートの一連フロー完成</td></tr>
+  <tr><td><strong>M3:</strong> TestFlight配布</td><td>第2週</td><td>友人5名がテスト開始</td></tr>
+  <tr><td><strong>M4:</strong> フィードバック改善</td><td>第3週</td><td>フィードバック収集、上位3件の問題修正</td></tr>
+  <tr><td><strong>M5:</strong> App Store申請</td><td>第4週</td><td>申請資料準備、審査提出</td></tr>
+</table>
+
+<div class="page-break"></div>
+
+<h2>8. リスクと対策</h2>
+<table>
+  <tr><th>リスク</th><th>確率</th><th>影響度</th><th>対策</th></tr>
+  <tr>
+    <td>AIスクショ認識の精度不足</td>
+    <td><span class="risk-med">中</span></td>
+    <td><span class="risk-high">高</span></td>
+    <td>手動入力フォールバック、プロンプト最適化、対応プラットフォーム限定</td>
+  </tr>
+  <tr>
+    <td>APIコスト超過</td>
+    <td><span class="risk-low">低</span></td>
+    <td><span class="risk-med">中</span></td>
+    <td>費用計算はローカルコード、Vision結果キャッシュ、無料利用回数制限</td>
+  </tr>
+  <tr>
+    <td>App Store審査却下</td>
+    <td><span class="risk-med">中</span></td>
+    <td><span class="risk-med">中</span></td>
+    <td>審査ガイドラインの事前調査、プライバシーポリシー完備</td>
+  </tr>
+  <tr>
+    <td>費用モデルの計算不正確</td>
+    <td><span class="risk-low">低</span></td>
+    <td><span class="risk-high">高</span></td>
+    <td>実際の不動産仲介の見積もりと検証、「参考値」表示</td>
+  </tr>
+  <tr>
+    <td>ユーザーが質問に回答しない</td>
+    <td><span class="risk-low">低</span></td>
+    <td><span class="risk-med">中</span></td>
+    <td>合理的なデフォルト値を設定、最大5ターンで結果出力</td>
+  </tr>
+</table>
+
+<h2>9. コスト予算</h2>
+<table>
+  <tr><th>項目</th><th>費用</th><th>備考</th></tr>
+  <tr><td>Apple Developer Account</td><td>$99/年</td><td>App Store公開に必須</td></tr>
+  <tr><td>Claude API</td><td>〜$35/月</td><td>100ユーザー × 月10回利用想定</td></tr>
+  <tr><td>Expo EAS Build</td><td>無料</td><td>無料枠でMVP十分</td></tr>
+  <tr><td>ドメイン（任意）</td><td>〜$15/年</td><td>プライバシーポリシーページ用</td></tr>
+  <tr>
+    <td><strong>合計（初年度）</strong></td>
+    <td><strong>約 $530（約8万円）</strong></td>
+    <td></td>
+  </tr>
+</table>
+
+<h2>10. 将来計画（v2以降）</h2>
+<table>
+  <tr><th>機能</th><th>説明</th></tr>
+  <tr><td><strong>住宅ローン減税計算</strong></td><td>完全なローン減税モデルの導入</td></tr>
+  <tr><td><strong>モンテカルロシナリオシミュレーション</strong></td><td>離日・金利変動・大規模修繕等の複数シナリオ確率分析</td></tr>
+  <tr><td><strong>投資収益分析</strong></td><td>賃貸収益率・実質利回り計算</td></tr>
+  <tr><td><strong>エリアレコメンド</strong></td><td>予算と条件に基づく最適エリア提案</td></tr>
+  <tr><td><strong>修繕積立金逓増モデル</strong></td><td>築年数に基づく将来費用予測</td></tr>
+  <tr><td><strong>多言語対応</strong></td><td>日本語/英語インターフェース（ユーザー層拡大）</td></tr>
+</table>
+
+<div class="footer">
+  <p>House Calc プロジェクト企画書 v1.0 &nbsp;|&nbsp; 2026年3月28日作成 &nbsp;|&nbsp; Confidential</p>
+</div>
+
+</body>
+</html>

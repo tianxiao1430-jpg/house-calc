@@ -26,11 +26,13 @@ from prompts import EXTRACT_BUY_PROMPT, EXTRACT_RENT_PROMPT, build_chat_prompt
 
 app = FastAPI(title="House Calc API", version="0.1.0")
 
+ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # TODO: restrict in production
+    allow_origins=[o.strip() for o in ALLOWED_ORIGINS],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
 
@@ -292,7 +294,12 @@ async def submit_lead(lead: LeadSubmission):
     """Submit a lead from the app to notify staff."""
     email_sent = _send_lead_email(lead)
     # Always return success — lead data is logged even if email fails
-    print(f"[LEAD] {'Email sent' if email_sent else 'Logged only'}: "
-          f"{lead.contact_name} / {lead.contact_info} / "
-          f"{'satisfied' if lead.satisfied else 'unsatisfied'}")
+    import logging
+    logger = logging.getLogger("house_calc")
+    # Mask PII in logs
+    masked_name = (lead.contact_name[:1] + "***") if lead.contact_name else "N/A"
+    masked_info = (lead.contact_info[:3] + "***") if len(lead.contact_info) > 3 else "N/A"
+    logger.info(f"[LEAD] {'Email sent' if email_sent else 'Logged only'}: "
+                f"{masked_name} / {masked_info} / "
+                f"{'satisfied' if lead.satisfied else 'unsatisfied'}")
     return {"status": "ok", "email_sent": email_sent}

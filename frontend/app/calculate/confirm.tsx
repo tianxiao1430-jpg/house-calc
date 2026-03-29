@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, SafeAreaView, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../src/lib/colors';
 import { getSession, setSession } from '../../src/lib/session';
@@ -58,7 +58,7 @@ export default function ConfirmScreen() {
   const session = getSession();
 
   const isManual = manual === 'true';
-  const extractedData = session.extracted || (mode === 'buy' ? MOCK_BUY : MOCK_RENT);
+  const extractedData = sessionData.extracted || (mode === 'buy' ? MOCK_BUY : MOCK_RENT);
 
   const [values, setValues] = useState<Record<string, string>>(() => {
     if (isManual) return {};
@@ -79,6 +79,11 @@ export default function ConfirmScreen() {
   const fields = FIELDS.filter((f) => f.modes.includes(mode!));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showErrors, setShowErrors] = useState(false);
+  const [sessionData, setSessionData] = useState<any>({});
+
+  useEffect(() => {
+    getSession().then(s => setSessionData(s));
+  }, []);
 
   // Parse numeric value, supporting Chinese 万 notation (e.g. "15万" → 150000)
   const parseNumericValue = (val: string): number | null => {
@@ -124,7 +129,7 @@ export default function ConfirmScreen() {
     }
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     // Validate all fields
     const newErrors: Record<string, string> = {};
     for (const f of fields) {
@@ -153,7 +158,7 @@ export default function ConfirmScreen() {
       }
     }
 
-    setSession({ property });
+    await setSession({ property });
 
     // Both modes go through chat — AI collects info then explores needs
     router.push({

@@ -6,7 +6,8 @@
 import type { ExtractedProperty, CostResult, BuyInputs, RentInputs, ChatMessage } from '../types';
 
 // TODO: change to production URL
-const BASE_URL = __DEV__ ? 'http://localhost:8000' : 'https://api.house-calc.app';
+// Unit convention: Frontend displays in 万円, API sends in 円
+export const BASE_URL = __DEV__ ? 'http://localhost:8000' : 'https://api.house-calc.app';
 
 async function request<T>(path: string, options: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -61,6 +62,20 @@ export async function chat(
       user_message: userMessage,
     }),
   });
+}
+
+/** Convert price from 万円 to 円 for API submission */
+function toYen(man: number): number {
+  return man * 10000;
+}
+
+export function preparePropertyForApi(prop: Record<string, any>): Record<string, any> {
+  const result = { ...prop };
+  // Ensure price is in 円 (backend expects 円)
+  if (result.price && result.price < 100000) {
+    result.price = toYen(result.price);
+  }
+  return result;
 }
 
 export async function calculateBuy(

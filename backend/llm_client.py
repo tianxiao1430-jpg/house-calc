@@ -34,7 +34,7 @@ def _call_openai(
     client = openai.OpenAI(
         api_key=os.getenv("OPENAI_API_KEY", ""),
         base_url=os.getenv("OPENAI_BASE_URL", None),  # None = default OpenAI
-        timeout=30.0,  # 30s timeout to avoid hanging
+        timeout=60.0,  # 30s timeout to avoid hanging
     )
     full_messages = []
     if system:

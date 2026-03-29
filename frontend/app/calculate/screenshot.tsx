@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../src/lib/colors';
 import { setSession } from '../../src/lib/session';
+import { extractProperty } from '../../src/lib/api';
 import type { Mode } from '../../src/types';
 
 export default function ScreenshotScreen() {
@@ -39,27 +40,8 @@ export default function ScreenshotScreen() {
     setLoading(true);
 
     try {
-      const formData = new FormData();
-
-      // Web: fetch blob from URI; Native: use RN FormData format
-      const response = await fetch(uri);
-      const blob = await response.blob();
-      formData.append('image', blob, 'screenshot.jpg');
-      formData.append('mode', mode!);
-
-      const BASE_URL = 'http://localhost:8000';
-      const res = await fetch(`${BASE_URL}/extract`, {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(errText);
-      }
-
-      const extracted = await res.json();
-      setSession({ mode: mode as Mode, imageUri: uri, extracted });
+      const extracted = await extractProperty(uri, mode as Mode);
+      await setSession({ mode: mode as Mode, imageUri: uri, extracted });
       setLoading(false);
       router.push({
         pathname: '/calculate/confirm',

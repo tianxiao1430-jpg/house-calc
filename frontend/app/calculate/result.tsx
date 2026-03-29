@@ -5,72 +5,20 @@ import { Colors } from '../../src/lib/colors';
 import { saveHistory } from '../../src/lib/storage';
 import { getSession, setSession } from '../../src/lib/session';
 import type { Mode, CostResult, CostLineItem, HistoryEntry } from '../../src/types';
+import { BASE_URL, preparePropertyForApi } from '../../src/lib/api';
 import { useState, useEffect } from 'react';
 
 function formatYen(amount: number): string {
   return `¥${Math.round(amount).toLocaleString()}`;
 }
 
-// Mock result — will be replaced by backend /calculate API
-function getMockResult(mode: Mode): CostResult {
-  if (mode === 'buy') {
-    return {
-      mode: 'buy',
-      monthly_items: [
-        { label: '住宅贷款月供\n[住宅ローン月払]', amount: 89350 },
-        { label: '管理费\n[管理費]', amount: 12000 },
-        { label: '修缮积立金\n[修繕積立金]', amount: 8500 },
-        { label: '固定资产税\n[固定資産税]', amount: 7230 },
-        { label: '都市计划税\n[都市計画税]', amount: 1550 },
-        { label: '火灾保险\n[火災保険]', amount: 980 },
-      ],
-      monthly_total: 119610,
-      initial_items: [
-        { label: '仲介手数料', amount: 1221000 },
-        { label: '登録免許税（所有権）', amount: 73500 },
-        { label: '登録免許税（抵当権）', amount: 31500 },
-        { label: '不動産取得税', amount: 228000 },
-        { label: '印紙税', amount: 20000 },
-        { label: '司法書士報酬', amount: 120000 },
-        { label: 'ローン事務手数料', amount: 693000 },
-      ],
-      initial_total: 2387000,
-      long_term: [
-        { label: '10年累计 [10年間累計]', amount: 16353200 },
-        { label: '20年累计 [20年間累計]', amount: 30706400 },
-      ],
-    };
-  }
-  return {
-    mode: 'rent',
-    monthly_items: [
-      { label: '家賃', amount: 120000 },
-      { label: '管理费/共益費', amount: 5000 },
-      { label: '更新料（月割）', amount: 5000 },
-      { label: '保証会社（月割）', amount: 833 },
-      { label: '火灾保险（月割）', amount: 1250 },
-    ],
-    monthly_total: 132083,
-    initial_items: [
-      { label: '敷金', amount: 120000 },
-      { label: '礼金', amount: 120000 },
-      { label: '仲介手数料', amount: 132000 },
-      { label: '保証会社（初回）', amount: 60000 },
-      { label: '火災保険', amount: 15000 },
-      { label: '鍵交換', amount: 18000 },
-    ],
-    initial_total: 465000,
-    long_term: [
-      { label: '1年总支出', amount: 2049996 },
-      { label: '2年总支出', amount: 4049992 },
-    ],
-  };
-}
+
 
 export default function ResultScreen() {
-  const { mode, property: propertyStr } = useLocalSearchParams<{
+  const { mode, property: propertyStr, historyId } = useLocalSearchParams<{
     mode: Mode;
     property?: string;
+    historyId?: string;
   }>();
   const router = useRouter();
   const [showInitial, setShowInitial] = useState(false);
@@ -78,11 +26,35 @@ export default function ResultScreen() {
   const session = getSession();
   const [result, setResult] = useState<CostResult | null>(null);
   const [loading, setLoading] = useState(true);
-  const location = session.property?.location || session.extracted?.location || '未知地址';
+  const [error, setError] = useState(false);
+  // location loaded inside calculate()
+
+  const [location, setLocation] = useState('未知地址');
+  const [historyResult, setHistoryResult] = useState<CostResult | null>(null);
 
   useEffect(() => {
+    // If viewing from history, load the saved result
+    if (historyId) {
+      (async () => {
+        const { getHistory } = await import('../../src/lib/storage');
+        const history = await getHistory();
+        const entry = history.find(e => e.id === historyId);
+        if (entry) {
+          setResult(entry.result);
+          setLocation(entry.location);
+          setHistoryResult(entry.result);
+        }
+        setLoading(false);
+      })();
+      return;
+    }
+
     async function calculate() {
-      const property = session.property || (propertyStr ? JSON.parse(propertyStr) : {});
+      const session = await getSession();
+      const loc = session.property?.location || session.extracted?.location || '未知地址';
+      setLocation(loc);
+      const rawProperty = session.property || (propertyStr ? JSON.parse(propertyStr) : {});
+      const property = preparePropertyForApi(rawProperty);
       const BASE_URL = 'http://localhost:8000';
 
       try {
@@ -115,8 +87,9 @@ export default function ResultScreen() {
         const data = await res.json();
         setResult(data);
       } catch (err: any) {
-        // Fallback to mock if backend unavailable
-        setResult(getMockResult(mode!));
+        // Don't silently show fake data - inform user
+        setError(true);
+        setResult(null);
       } finally {
         setLoading(false);
       }
@@ -129,6 +102,23 @@ export default function ResultScreen() {
       <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color={Colors.primary} />
         <Text style={{ marginTop: 16, color: Colors.textSecondary }}>正在计算费用明细...</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Ionicons name="cloud-offline-outline" size={48} color={Colors.textMuted} />
+        <Text style={{ marginTop: 16, color: Colors.textSecondary, textAlign: 'center', paddingHorizontal: 32 }}>
+          无法连接计算服务{'\n'}请检查网络后重试
+        </Text>
+        <TouchableOpacity
+          style={{ marginTop: 24, backgroundColor: Colors.primary, paddingHorizontal: 32, paddingVertical: 14, borderRadius: 12 }}
+          onPress={() => { setError(false); setLoading(true); }}
+        >
+          <Text style={{ color: Colors.white, fontWeight: '600', fontSize: 16 }}>重试</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     );
   }
@@ -240,9 +230,10 @@ export default function ResultScreen() {
         </TouchableOpacity>
         <TouchableOpacity
           style={styles.footerBtn}
-          onPress={() => {
-            setSession({
-              ...getSession(),
+          onPress={async () => {
+            const s = await getSession();
+            await setSession({
+              ...s,
               costResult: result,
             } as any);
             router.push({

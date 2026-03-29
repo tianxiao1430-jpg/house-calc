@@ -3,10 +3,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useRef, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../src/lib/colors';
+import { BASE_URL } from '../../src/lib/api';
 import { getSession, setSession } from '../../src/lib/session';
 import type { Mode, ChatMessage } from '../../src/types';
-
-const BASE_URL = 'http://localhost:8000';
 
 // Contact info — customize for your company
 const COMPANY_CONTACT = {
@@ -18,8 +17,14 @@ const COMPANY_CONTACT = {
 export default function ChatScreen() {
   const { mode } = useLocalSearchParams<{ mode: Mode }>();
   const router = useRouter();
-  const session = getSession();
-  const property = session.property || session.extracted || {};
+  const [sessionData, setSessionData] = useState<any>({});
+
+  useEffect(() => {
+    getSession().then(s => setSessionData(s));
+  }, []);
+  // Use AI raw extraction for chat context, not user-edited property
+  const extracted = sessionData.extracted || {};
+  const property = extracted;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
@@ -37,7 +42,7 @@ export default function ChatScreen() {
     setLoading(true);
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 30000);
+      const timeout = setTimeout(() => controller.abort(), 60000);
 
       const res = await fetch(`${BASE_URL}/chat`, {
         method: 'POST',

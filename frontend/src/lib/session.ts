@@ -1,8 +1,9 @@
 /**
- * Simple in-memory session store for passing data between screens.
- * Avoids URL param size limits and encoding issues.
+ * Persistent session store using AsyncStorage.
+ * Data survives app backgrounding and process death.
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { ExtractedProperty, Mode, CostResult } from '../types';
 
 interface SessionData {
@@ -13,16 +14,25 @@ interface SessionData {
   costResult?: CostResult;
 }
 
-let _session: SessionData = { mode: 'rent' };
+const SESSION_KEY = 'house_calc_session';
 
-export function setSession(data: Partial<SessionData>) {
-  _session = { ..._session, ...data };
+let _cache: SessionData | null = null;
+
+export async function setSession(data: Partial<SessionData>): Promise<void> {
+  const current = await getSession();
+  const next = { ...current, ...data };
+  _cache = next;
+  await AsyncStorage.setItem(SESSION_KEY, JSON.stringify(next));
 }
 
-export function getSession(): SessionData {
-  return _session;
+export async function getSession(): Promise<SessionData> {
+  if (_cache) return _cache;
+  const raw = await AsyncStorage.getItem(SESSION_KEY);
+  _cache = raw ? JSON.parse(raw) : { mode: 'rent' };
+  return _cache!;
 }
 
-export function clearSession() {
-  _session = { mode: 'rent' };
+export async function clearSession(): Promise<void> {
+  _cache = { mode: 'rent' };
+  await AsyncStorage.removeItem(SESSION_KEY);
 }

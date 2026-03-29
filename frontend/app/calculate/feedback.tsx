@@ -1,12 +1,12 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, SafeAreaView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Image } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../src/lib/colors';
 import { getSession } from '../../src/lib/session';
 import type { Mode } from '../../src/types';
 
-const BASE_URL = 'http://localhost:8000';
+import { BASE_URL } from '../../src/lib/api';
 
 type Step = 'satisfaction' | 'feedback' | 'contact' | 'done';
 
@@ -19,10 +19,14 @@ const FEEDBACK_TAGS = [
 export default function FeedbackScreen() {
   const { mode } = useLocalSearchParams<{ mode: Mode }>();
   const router = useRouter();
-  const session = getSession();
-  const property = session.property || session.extracted || {};
-  const costResult = (session as any).costResult || {};
-  const imageUri = session.imageUri;
+  const [sessionData, setSessionData] = useState<any>({});
+
+  useEffect(() => {
+    getSession().then(s => setSessionData(s));
+  }, []);
+  const property = sessionData.property || sessionData.extracted || {};
+  const costResult = sessionData.costResult || {};
+  const imageUri = sessionData.imageUri;
 
   const [step, setStep] = useState<Step>('satisfaction');
   const [satisfied, setSatisfied] = useState<boolean | null>(null);

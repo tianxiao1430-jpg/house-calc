@@ -22,9 +22,10 @@ from cost_model import (
     calc_rent_long_term,
 )
 from llm_client import vision_extract, chat_completion, parse_json_response
-from prompts import EXTRACT_BUY_PROMPT, EXTRACT_RENT_PROMPT, build_chat_prompt
+from prompts import EXTRACT_BUY_PROMPT, EXTRACT_RENT_PROMPT, build_chat_prompt, ENHANCE_PROPERTY_PROMPT
+from search_tools import search_property_info, search_property_reviews, search_area_info
 
-app = FastAPI(title="House Calc API", version="0.1.0")
+app = FastAPI(title="House Calc API", version="0.2.0")
 
 ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 
@@ -58,6 +59,17 @@ class ExtractedProperty(BaseModel):
     deposit_months: Optional[float] = Field(1, description="敷金 (月数)")
     key_money_months: Optional[float] = Field(1, description="礼金 (月数)")
     confidence: Optional[float] = Field(None, description="識別信頼度 0-1")
+    name: Optional[str] = Field(None, description="物件名")
+
+
+class PropertySearchRequest(BaseModel):
+    property_name: str
+    location: Optional[str] = None
+
+
+class PropertyEnhanceRequest(BaseModel):
+    extracted: ExtractedProperty
+    search_results: list[dict]
 
 
 class BuyInputs(BaseModel):
@@ -133,6 +145,91 @@ async def extract_property(
         )
 
     return ExtractedProperty(**data)
+
+
+@app.post("/search/property", response_model=list[dict])
+async def search_property(req: PropertySearchRequest):
+    """Search for property information online to complement extracted data."""
+    print(f"[search] Searching for: {req.property_name} in {req.location or 'Japan'}")
+    
+    results = search_property_info(req.property_name, req.location or "")
+    
+    if not results:
+        # Fallback: try with just property name
+        results = search_property_info(req.property_name)
+    
+    print(f"[search] Found {len(results)} results")
+    return results
+
+
+@app.post("/search/reviews", response_model=list[dict])
+async def search_reviews(req: PropertySearchRequest):
+    """Search for property reviews and口碑."""
+    print(f"[search] Searching reviews for: {req.property_name}")
+    
+    results = search_property_reviews(req.property_name, req.location or "")
+    
+    print(f"[search] Found {len(results)} review results")
+    return results
+
+
+@app.post("/search/area", response_model=list[dict])
+async def search_area(location: str = Form(...)):
+    """Search for area information (nearby facilities, transport, etc.)."""
+    print(f"[search] Searching area info for: {location}")
+    
+    results = search_area_info(location)
+    
+    print(f"[search] Found {len(results)} area results")
+    return results
+
+
+@app.post("/enhance/property", response_model=ExtractedProperty)
+async def enhance_property(req: PropertyEnhanceRequest):
+    """Use search results to enhance extracted property information."""
+    print(f"[enhance] Enhancing property: {req.extracted.name or 'Unknown'}")
+    
+    # Convert search results to text
+    search_text = "\n\n".join([
+        f"来源：{r.get('title', 'Unknown')}\nURL: {r.get('url', '')}\n内容：{r.get('body', '')}"
+        for r in req.search_results
+    ])
+    
+    try:
+        enhanced_raw = chat_completion(
+            messages=[{"role": "user", "content": f"""
+物件情報：{req.extracted.model_dump_json()}
+
+検索結果：
+{search_text}
+
+上記の検索結果を元に、物件情報を補完してください。
+見つかった情報だけを JSON で返してください（説明不要）：
+{{
+  "price": <number or null>,
+  "area": <number or null>,
+  "building_age": <number or null>,
+  "structure": <string or null>,
+  "location": <string or null>,
+  "name": <string or null>
+}}
+"""}],
+            system=ENHANCE_PROPERTY_PROMPT,
+            max_tokens=512
+        )
+        enhanced_data = parse_json_response(enhanced_raw)
+        
+        # Merge with original data (search results take priority for missing fields)
+        merged = req.extracted.model_dump()
+        for key, value in enhanced_data.items():
+            if value is not None and (merged.get(key) is None or merged.get(key) == 0):
+                merged[key] = value
+        
+        return ExtractedProperty(**merged)
+    except Exception as e:
+        print(f"[enhance] Error: {e}")
+        # Return original data on error
+        return req.extracted
 
 
 @app.post("/chat")
@@ -258,19 +355,19 @@ def _send_lead_email(lead: LeadSubmission):
 
     body = f"""新客户线索通知
 
-状态: {status}
-模式: {"买房" if lead.mode == "buy" else "租房"}
-物件: {location} ({price_or_rent})
+状态：{status}
+模式：{"买房" if lead.mode == "buy" else "租房"}
+物件：{location} ({price_or_rent})
 
 客户信息:
-  姓名: {lead.contact_name}
-  联系方式: {lead.contact_info}
+  姓名：{lead.contact_name}
+  联系方式：{lead.contact_info}
 
 {feedback_section}
 
 费用概要:
-  月支出: ¥{lead.cost_summary.get("monthly_total", 0):,.0f}
-  初期费用: ¥{lead.cost_summary.get("initial_total", 0):,.0f}
+  月支出：¥{lead.cost_summary.get("monthly_total", 0):,.0f}
+  初期费用：¥{lead.cost_summary.get("initial_total", 0):,.0f}
 """
 
     msg = MIMEText(body, "plain", "utf-8")

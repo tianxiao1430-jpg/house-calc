@@ -9,7 +9,8 @@ from typing import Optional
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends, Request
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -30,6 +31,16 @@ from prompts import (
     build_analysis_report,
 )
 from search_tools import search_property_info, search_property_reviews, search_area_info
+
+security = HTTPBearer()
+API_TOKEN = os.getenv("API_TOKEN", "")
+
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    if API_TOKEN and credentials.credentials != API_TOKEN:
+        raise HTTPException(401, "Invalid token")
+    return credentials.credentials
+
 
 app = FastAPI(title="House Calc API", version="0.3.0")
 
@@ -134,7 +145,7 @@ async def health():
 
 
 @app.post("/extract", response_model=ExtractedProperty)
-async def extract_property(
+async def extract_property(token: str = Depends(verify_token), 
     image: UploadFile = File(...),
     mode: str = Form("buy"),
 ):
@@ -166,7 +177,7 @@ async def extract_property(
 
 
 @app.post("/search/property", response_model=list[dict])
-async def search_property(req: PropertySearchRequest):
+async def search_property(req: PropertySearchRequest, token: str = Depends(verify_token)):
     """Search for property information online to complement extracted data."""
     print(f"[search] Searching for: {req.property_name} in {req.location or 'Japan'}")
     
@@ -180,7 +191,7 @@ async def search_property(req: PropertySearchRequest):
 
 
 @app.post("/search/reviews", response_model=list[dict])
-async def search_reviews(req: PropertySearchRequest):
+async def search_reviews(req: PropertySearchRequest, token: str = Depends(verify_token)):
     """Search for property reviews and 口碑."""
     print(f"[search] Searching reviews for: {req.property_name}")
     
@@ -191,7 +202,7 @@ async def search_reviews(req: PropertySearchRequest):
 
 
 @app.post("/search/area", response_model=list[dict])
-async def search_area(location: str = Form(...)):
+async def search_area(location: str = Form(...), token: str = Depends(verify_token)...)):
     """Search for area information (nearby facilities, transport, etc.)."""
     print(f"[search] Searching area info for: {location}")
     
@@ -202,7 +213,7 @@ async def search_area(location: str = Form(...)):
 
 
 @app.post("/enhance/property", response_model=ExtractedProperty)
-async def enhance_property(req: PropertyEnhanceRequest):
+async def enhance_property(req: PropertyEnhanceRequest, token: str = Depends(verify_token)):
     """Use search results to enhance extracted property information."""
     print(f"[enhance] Enhancing property: {req.extracted.name or 'Unknown'}")
     
@@ -249,7 +260,7 @@ async def enhance_property(req: PropertyEnhanceRequest):
 
 
 @app.post("/needs/collect")
-async def collect_needs(req: ClientNeedsRequest):
+async def collect_needs(req: ClientNeedsRequest, token: str = Depends(verify_token)):
     """Collect client needs through conversation."""
     print(f"[needs] Mode: {req.mode}, message: {req.user_message}")
     
@@ -277,7 +288,7 @@ async def collect_needs(req: ClientNeedsRequest):
 
 
 @app.post("/analysis/report", response_model=dict)
-async def generate_analysis_report(req: AnalysisReportRequest):
+async def generate_analysis_report(req: AnalysisReportRequest, token: str = Depends(verify_token)):
     """Generate suitability analysis report for a property."""
     print(f"[analysis] Generating report for {req.mode} mode")
     
@@ -300,7 +311,7 @@ async def generate_analysis_report(req: AnalysisReportRequest):
 
 
 @app.post("/chat")
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest, token: str = Depends(verify_token)):
     """Conversational follow-up questions (legacy endpoint)."""
     from prompts import build_chat_prompt
     
@@ -324,7 +335,7 @@ async def chat(req: ChatRequest):
 
 
 @app.post("/calculate/buy", response_model=CostResult)
-async def calculate_buy(inputs: BuyInputs):
+async def calculate_buy(inputs: BuyInputs, token: str = Depends(verify_token)):
     """Calculate buy-mode cost breakdown."""
     p = inputs.property
     monthly_items = calc_buy_monthly(
@@ -358,7 +369,7 @@ async def calculate_buy(inputs: BuyInputs):
 
 
 @app.post("/calculate/rent", response_model=CostResult)
-async def calculate_rent(inputs: RentInputs):
+async def calculate_rent(inputs: RentInputs, token: str = Depends(verify_token)):
     """Calculate rent-mode cost breakdown."""
     p = inputs.property
     monthly_items = calc_rent_monthly(
@@ -455,7 +466,7 @@ def _send_lead_email(lead: LeadSubmission):
 
 
 @app.post("/submit-lead")
-async def submit_lead(lead: LeadSubmission):
+async def submit_lead(lead: LeadSubmission, token: str = Depends(verify_token)):
     """Submit a lead from the app to notify staff."""
     email_sent = _send_lead_email(lead)
     print(f"[LEAD] {'Email sent' if email_sent else 'Logged only'}: "

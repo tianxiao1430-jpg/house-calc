@@ -1,4 +1,4 @@
-"""House Calc Backend — FastAPI server for AI property cost analysis."""
+"""House Calc Backend — FastAPI server for AI property analysis."""
 
 import base64
 import os
@@ -22,12 +22,18 @@ from cost_model import (
     calc_rent_long_term,
 )
 from llm_client import vision_extract, chat_completion, parse_json_response
-from prompts import EXTRACT_BUY_PROMPT, EXTRACT_RENT_PROMPT, build_chat_prompt, ENHANCE_PROPERTY_PROMPT
+from prompts import (
+    EXTRACT_BUY_PROMPT,
+    EXTRACT_RENT_PROMPT,
+    ENHANCE_PROPERTY_PROMPT,
+    build_needs_prompt,
+    build_analysis_report,
+)
 from search_tools import search_property_info, search_property_reviews, search_area_info
 
-app = FastAPI(title="House Calc API", version="0.2.0")
+app = FastAPI(title="House Calc API", version="0.3.0")
 
-ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8081").split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,11 +42,6 @@ app.add_middleware(
     allow_methods=["POST", "GET"],
     allow_headers=["*"],
 )
-
-# LLM client is configured via environment variables:
-# LLM_PROVIDER=openai (or anthropic, google)
-# LLM_MODEL=gpt-4o-mini (cheapest with vision)
-# See llm_client.py for details
 
 
 # ── Request / Response Models ──────────────────────────────────────
@@ -60,6 +61,10 @@ class ExtractedProperty(BaseModel):
     key_money_months: Optional[float] = Field(1, description="礼金 (月数)")
     confidence: Optional[float] = Field(None, description="識別信頼度 0-1")
     name: Optional[str] = Field(None, description="物件名")
+    station: Optional[str] = Field(None, description="最寄駅")
+    walk_minutes: Optional[int] = Field(None, description="駅徒歩分数")
+    floor: Optional[int] = Field(None, description="階数")
+    year_built: Optional[int] = Field(None, description="築年")
 
 
 class PropertySearchRequest(BaseModel):
@@ -70,6 +75,19 @@ class PropertySearchRequest(BaseModel):
 class PropertyEnhanceRequest(BaseModel):
     extracted: ExtractedProperty
     search_results: list[dict]
+
+
+class ClientNeedsRequest(BaseModel):
+    mode: str = Field(..., description="buy | rent")
+    conversation: list = Field(default_factory=list)
+    user_message: str = Field("")
+
+
+class AnalysisReportRequest(BaseModel):
+    mode: str = Field(..., description="buy | rent")
+    property_info: dict
+    client_needs: list = Field(default_factory=list)
+    search_info: str = Field("", description="Optional search results")
 
 
 class BuyInputs(BaseModel):
@@ -155,7 +173,6 @@ async def search_property(req: PropertySearchRequest):
     results = search_property_info(req.property_name, req.location or "")
     
     if not results:
-        # Fallback: try with just property name
         results = search_property_info(req.property_name)
     
     print(f"[search] Found {len(results)} results")
@@ -164,7 +181,7 @@ async def search_property(req: PropertySearchRequest):
 
 @app.post("/search/reviews", response_model=list[dict])
 async def search_reviews(req: PropertySearchRequest):
-    """Search for property reviews and口碑."""
+    """Search for property reviews and 口碑."""
     print(f"[search] Searching reviews for: {req.property_name}")
     
     results = search_property_reviews(req.property_name, req.location or "")
@@ -189,7 +206,6 @@ async def enhance_property(req: PropertyEnhanceRequest):
     """Use search results to enhance extracted property information."""
     print(f"[enhance] Enhancing property: {req.extracted.name or 'Unknown'}")
     
-    # Convert search results to text
     search_text = "\n\n".join([
         f"来源：{r.get('title', 'Unknown')}\nURL: {r.get('url', '')}\n内容：{r.get('body', '')}"
         for r in req.search_results
@@ -211,7 +227,9 @@ async def enhance_property(req: PropertyEnhanceRequest):
   "building_age": <number or null>,
   "structure": <string or null>,
   "location": <string or null>,
-  "name": <string or null>
+  "name": <string or null>,
+  "station": <string or null>,
+  "walk_minutes": <number or null>
 }}
 """}],
             system=ENHANCE_PROPERTY_PROMPT,
@@ -219,7 +237,6 @@ async def enhance_property(req: PropertyEnhanceRequest):
         )
         enhanced_data = parse_json_response(enhanced_raw)
         
-        # Merge with original data (search results take priority for missing fields)
         merged = req.extracted.model_dump()
         for key, value in enhanced_data.items():
             if value is not None and (merged.get(key) is None or merged.get(key) == 0):
@@ -228,20 +245,71 @@ async def enhance_property(req: PropertyEnhanceRequest):
         return ExtractedProperty(**merged)
     except Exception as e:
         print(f"[enhance] Error: {e}")
-        # Return original data on error
         return req.extracted
+
+
+@app.post("/needs/collect")
+async def collect_needs(req: ClientNeedsRequest):
+    """Collect client needs through conversation."""
+    print(f"[needs] Mode: {req.mode}, message: {req.user_message}")
+    
+    system_prompt = build_needs_prompt(req.mode)
+    
+    messages = list(req.conversation)
+    if req.user_message:
+        messages.append({"role": "user", "content": req.user_message})
+    
+    try:
+        assistant_text = chat_completion(messages, system=system_prompt, max_tokens=256)
+    except Exception as e:
+        raise HTTPException(502, f"LLM API error: {e}")
+    
+    messages.append({"role": "assistant", "content": assistant_text})
+    
+    # Check if needs collection is complete
+    needs_ready = "[NEEDS_READY]" in assistant_text
+    
+    return {
+        "reply": assistant_text.replace("[NEEDS_READY]", ""),
+        "conversation": messages,
+        "needs_ready": needs_ready
+    }
+
+
+@app.post("/analysis/report", response_model=dict)
+async def generate_analysis_report(req: AnalysisReportRequest):
+    """Generate suitability analysis report for a property."""
+    print(f"[analysis] Generating report for {req.mode} mode")
+    
+    try:
+        report_prompt = build_analysis_report(req.property_info, req.client_needs, req.search_info)
+        
+        report_text = chat_completion(
+            messages=[{"role": "user", "content": "请生成适合度分析报告"}],
+            system=report_prompt,
+            max_tokens=1024
+        )
+        
+        return {
+            "report": report_text,
+            "property_info": req.property_info,
+            "client_needs": req.client_needs
+        }
+    except Exception as e:
+        raise HTTPException(502, f"LLM API error: {e}")
 
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
-    """Conversational follow-up questions."""
+    """Conversational follow-up questions (legacy endpoint)."""
+    from prompts import build_chat_prompt
+    
     system_prompt = build_chat_prompt(req.mode, req.extracted.model_dump())
 
     messages = list(req.conversation)
     if req.user_message:
         messages.append({"role": "user", "content": req.user_message})
 
-    # Keep only last 10 messages to avoid slow responses from long history
     if len(messages) > 10:
         messages = messages[-10:]
 
@@ -390,13 +458,7 @@ def _send_lead_email(lead: LeadSubmission):
 async def submit_lead(lead: LeadSubmission):
     """Submit a lead from the app to notify staff."""
     email_sent = _send_lead_email(lead)
-    # Always return success — lead data is logged even if email fails
-    import logging
-    logger = logging.getLogger("house_calc")
-    # Mask PII in logs
-    masked_name = (lead.contact_name[:1] + "***") if lead.contact_name else "N/A"
-    masked_info = (lead.contact_info[:3] + "***") if len(lead.contact_info) > 3 else "N/A"
-    logger.info(f"[LEAD] {'Email sent' if email_sent else 'Logged only'}: "
-                f"{masked_name} / {masked_info} / "
-                f"{'satisfied' if lead.satisfied else 'unsatisfied'}")
+    print(f"[LEAD] {'Email sent' if email_sent else 'Logged only'}: "
+          f"{lead.contact_name} / {lead.contact_info} / "
+          f"{'satisfied' if lead.satisfied else 'unsatisfied'}")
     return {"status": "ok", "email_sent": email_sent}

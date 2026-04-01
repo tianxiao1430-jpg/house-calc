@@ -7,16 +7,13 @@ import type { ExtractedProperty, CostResult, BuyInputs, RentInputs, ChatMessage 
 
 // TODO: change to production URL
 // Unit convention: Frontend displays in 万円, API sends in 円
-export const API_TOKEN = "house-calc-2024-secret";
-
-export const BASE_URL = __DEV__ ? 'http://localhost:8000' : 'https://house-calc-api-7526431800.asia-northeast1.run.app';
+export const BASE_URL = __DEV__ ? 'http://localhost:8000' : 'https://api.house-calc.app';
 
 async function request<T>(path: string, options: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${API_TOKEN}`,
       ...options.headers,
     },
   });
@@ -41,7 +38,6 @@ export async function extractProperty(
 
   const res = await fetch(`${BASE_URL}/extract`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${API_TOKEN}` },
     body: formData,
   });
   if (!res.ok) {
@@ -59,7 +55,6 @@ export async function chat(
 ): Promise<{ reply: string; conversation: ChatMessage[] }> {
   return request('/chat', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${API_TOKEN}` },
     body: JSON.stringify({
       mode,
       extracted,
@@ -89,7 +84,6 @@ export async function calculateBuy(
 ): Promise<CostResult> {
   return request('/calculate/buy', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${API_TOKEN}` },
     body: JSON.stringify({ property, ...inputs }),
   });
 }
@@ -100,7 +94,6 @@ export async function calculateRent(
 ): Promise<CostResult> {
   return request('/calculate/rent', {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${API_TOKEN}` },
     body: JSON.stringify({ property, ...inputs }),
   });
 }

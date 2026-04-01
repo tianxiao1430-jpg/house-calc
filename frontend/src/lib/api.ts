@@ -7,7 +7,7 @@ import type { ExtractedProperty, CostResult, BuyInputs, RentInputs, ChatMessage 
 
 // TODO: change to production URL
 // Unit convention: Frontend displays in 万円, API sends in 円
-export const BASE_URL = __DEV__ ? 'http://localhost:8000' : 'https://api.house-calc.app';
+export const BASE_URL = __DEV__ ? 'http://localhost:8000' : 'https://house-calc-api-304135313939.asia-northeast1.run.app';
 
 async function request<T>(path: string, options: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {

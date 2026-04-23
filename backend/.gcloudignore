@@ -1,0 +1,14 @@
+.gcloudignore
+.git
+.gitignore
+__pycache__/
+*.pyc
+.env
+.env.runtime
+.venv/
+dist/
+build/
+env.yaml
+.tmp-chrome-profile/
+chrome-mcp-*.png
+tests/

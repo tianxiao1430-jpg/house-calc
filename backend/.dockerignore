@@ -1,6 +1,8 @@
 __pycache__
 *.pyc
-.env
+.env*
+!.env.example
+env.yaml
 .git
 *.log
 __MACOSX

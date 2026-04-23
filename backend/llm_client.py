@@ -19,8 +19,14 @@ import os
 from typing import Optional
 
 
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
-LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o-mini")
+def _env(name: str, default: str = "") -> str:
+    """Read env vars defensively; Secret Manager values may include trailing newlines."""
+    return os.getenv(name, default).strip()
+
+
+LLM_PROVIDER = _env("LLM_PROVIDER", "openai")
+LLM_MODEL = _env("LLM_MODEL", "gpt-4o-mini")
+LLM_TIMEOUT_SECONDS = float(_env("LLM_TIMEOUT_SECONDS", "8"))
 
 
 def _call_openai(
@@ -32,8 +38,8 @@ def _call_openai(
     import openai
 
     client = openai.OpenAI(
-        api_key=os.getenv("OPENAI_API_KEY", ""),
-        base_url=os.getenv("OPENAI_BASE_URL", None),  # None = default OpenAI
+        api_key=_env("OPENAI_API_KEY"),
+        base_url=_env("OPENAI_BASE_URL") or None,  # None = default OpenAI
         timeout=60.0,  # 30s timeout to avoid hanging
     )
     full_messages = []
@@ -57,7 +63,7 @@ def _call_anthropic(
     """Call Anthropic Claude API."""
     import anthropic
 
-    client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY", ""))
+    client = anthropic.Anthropic(api_key=_env("ANTHROPIC_API_KEY"))
     response = client.messages.create(
         model=LLM_MODEL,
         max_tokens=max_tokens,
@@ -75,7 +81,7 @@ def _call_google(
     """Call Google Gemini API."""
     import google.generativeai as genai
 
-    genai.configure(api_key=os.getenv("GOOGLE_API_KEY", ""))
+    genai.configure(api_key=_env("GOOGLE_API_KEY"))
     model = genai.GenerativeModel(LLM_MODEL, system_instruction=system)
 
     # Convert messages to Gemini format
@@ -86,7 +92,7 @@ def _call_google(
 
     chat = model.start_chat(history=history)
     last = messages[-1]["content"] if messages else ""
-    response = chat.send_message(last)
+    response = chat.send_message(last, request_options={"timeout": LLM_TIMEOUT_SECONDS})
     return response.text
 
 
@@ -153,14 +159,15 @@ def vision_extract(image_b64: str, media_type: str, prompt: str) -> str:
     elif LLM_PROVIDER == "google":
         import google.generativeai as genai
 
-        genai.configure(api_key=os.getenv("GOOGLE_API_KEY", ""))
+        genai.configure(api_key=_env("GOOGLE_API_KEY"))
         model = genai.GenerativeModel(LLM_MODEL)
         image_bytes = base64.b64decode(image_b64)
         response = model.generate_content(
             [
                 {"mime_type": media_type, "data": image_bytes},
                 prompt,
-            ]
+            ],
+            request_options={"timeout": LLM_TIMEOUT_SECONDS},
         )
         return response.text
 

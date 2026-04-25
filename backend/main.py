@@ -141,17 +141,6 @@ def _request_origin(request: Request) -> Optional[str]:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
-def _request_base_origin(request: Request) -> str:
-    return f"{request.url.scheme}://{request.url.netloc}"
-
-
-def _is_cloud_run_house_calc_origin(origin: Optional[str]) -> bool:
-    if not origin:
-        return False
-    parsed = urlparse(origin)
-    return parsed.scheme == "https" and parsed.netloc.startswith("house-calc-api-") and parsed.netloc.endswith(".run.app")
-
-
 def _is_public_web_asset(path: str) -> bool:
     return path == "/" or path == "/_expo/static/js/web/entry.js"
 
@@ -171,11 +160,7 @@ def _allow_anonymous_request(request: Request) -> bool:
         return False
 
     origin = _request_origin(request)
-    if (
-        origin in PUBLIC_BROWSER_ORIGINS
-        or origin == _request_base_origin(request)
-        or _is_cloud_run_house_calc_origin(origin)
-    ):
+    if origin in PUBLIC_BROWSER_ORIGINS:
         return True
 
     print(

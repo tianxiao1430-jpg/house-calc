@@ -43,6 +43,22 @@ class PublicCompatibilityTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 401, response.text)
 
+    def test_calculate_rent_rejects_anonymous_requests_from_cloud_run_origin(self):
+        response = self.client.post(
+            "/calculate/rent",
+            headers={"Origin": "https://house-calc-api-304135313939.asia-northeast1.run.app"},
+            json={
+                "property": {
+                    "rent": 100000,
+                    "management_fee": 5000,
+                    "deposit_months": 1,
+                    "key_money_months": 1,
+                },
+                "needs_guarantor": True,
+            },
+        )
+        self.assertEqual(response.status_code, 401, response.text)
+
     def test_submit_lead_succeeds_when_backup_storage_catches_email_failure(self):
         with patch("main._send_lead_email", return_value=False), patch(
             "main._store_lead_backup", return_value=True, create=True

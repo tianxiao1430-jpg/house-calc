@@ -5,9 +5,11 @@
 
 import type { ExtractedProperty, CostResult, BuyInputs, RentInputs, ChatMessage } from '../types';
 
-// TODO: change to production URL
 // Unit convention: Frontend displays in 万円, API sends in 円
-export const BASE_URL = __DEV__ ? 'http://localhost:8000' : 'https://house-calc-api-304135313939.asia-northeast1.run.app';
+export const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL
+  || (__DEV__ ? 'http://localhost:8000' : 'https://house-calc-api-304135313939.asia-northeast1.run.app');
+
+type ExtractedPropertyResponse = ExtractedProperty & Record<string, any>;
 
 async function request<T>(path: string, options: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
@@ -44,7 +46,25 @@ export async function extractProperty(
     const body = await res.text();
     throw new Error(`Extract failed: ${body}`);
   }
-  return res.json();
+  return normalizeExtractedProperty(await res.json());
+}
+
+export function normalizeExtractedProperty(raw: ExtractedPropertyResponse): ExtractedProperty {
+  const area = raw.area ?? raw.floorArea;
+  const buildingAge = raw.building_age ?? raw.buildingAge ?? raw.buildingYear;
+  const location = raw.location ?? raw.address ?? raw.name;
+
+  return {
+    ...raw,
+    price: raw.price,
+    rent: raw.rent,
+    management_fee: raw.management_fee ?? raw.managementFee ?? 0,
+    repair_reserve: raw.repair_reserve ?? raw.repairReserveFund ?? 0,
+    common_fee: raw.common_fee ?? raw.commonFee ?? 0,
+    area,
+    building_age: buildingAge,
+    location,
+  };
 }
 
 export async function chat(

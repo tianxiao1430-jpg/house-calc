@@ -49,41 +49,46 @@ const MOCK_RENT: Partial<ExtractedProperty> = {
   key_money_months: 1,
 };
 
+function buildInitialValues(extractedData: Partial<ExtractedProperty>): Record<string, string> {
+  const init: Record<string, string> = {};
+  for (const [k, v] of Object.entries(extractedData)) {
+    if (v !== undefined && v !== null) {
+      // For buy mode, convert price from yen to 万円 for display
+      init[k] = k === 'price' && typeof v === 'number' && v > 100000
+        ? String(v / 10000)
+        : String(v);
+    }
+  }
+  return init;
+}
+
 export default function ConfirmScreen() {
   const { mode, manual } = useLocalSearchParams<{
     mode: Mode;
     manual?: string;
   }>();
   const router = useRouter();
-  const session = getSession();
 
   const isManual = manual === 'true';
-  const extractedData = sessionData.extracted || (mode === 'buy' ? MOCK_BUY : MOCK_RENT);
-
-  const [values, setValues] = useState<Record<string, string>>(() => {
-    if (isManual) return {};
-    const init: Record<string, string> = {};
-    for (const [k, v] of Object.entries(extractedData)) {
-      if (v !== undefined && v !== null) {
-        // For buy mode, convert price from yen to 万円 for display
-        if (k === 'price' && typeof v === 'number' && v > 100000) {
-          init[k] = String(v / 10000);
-        } else {
-          init[k] = String(v);
-        }
-      }
-    }
-    return init;
-  });
+  const [values, setValues] = useState<Record<string, string>>({});
 
   const fields = FIELDS.filter((f) => f.modes.includes(mode!));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [showErrors, setShowErrors] = useState(false);
-  const [sessionData, setSessionData] = useState<any>({});
 
   useEffect(() => {
-    getSession().then(s => setSessionData(s));
-  }, []);
+    let mounted = true;
+    getSession().then((s) => {
+      if (!mounted) return;
+      if (!isManual) {
+        const extractedData = s.extracted || (mode === 'buy' ? MOCK_BUY : MOCK_RENT);
+        setValues(buildInitialValues(extractedData));
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [isManual, mode]);
 
   // Parse numeric value, supporting Chinese 万 notation (e.g. "15万" → 150000)
   const parseNumericValue = (val: string): number | null => {

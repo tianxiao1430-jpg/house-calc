@@ -6,6 +6,7 @@ import json
 import os
 import smtplib
 import uuid
+from pathlib import Path
 from datetime import datetime, timezone
 from email.mime.text import MIMEText
 from typing import Optional
@@ -15,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Request
-from starlette.responses import JSONResponse
+from starlette.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, ConfigDict
 
@@ -38,6 +39,9 @@ from prompts import (
 from search_tools import search_property_info, search_property_reviews, search_area_info
 
 app = FastAPI(title="House Calc API", version="0.3.0")
+STATIC_DIR = Path(__file__).parent / "static"
+STATIC_INDEX = STATIC_DIR / "index.html"
+STATIC_ENTRY = STATIC_DIR / "_expo" / "static" / "js" / "web" / "entry.js"
 
 ALLOWED_ORIGINS = os.getenv(
     "CORS_ORIGINS",
@@ -137,12 +141,41 @@ def _request_origin(request: Request) -> Optional[str]:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
+def _request_base_origin(request: Request) -> str:
+    return f"{request.url.scheme}://{request.url.netloc}"
+
+
+def _is_cloud_run_house_calc_origin(origin: Optional[str]) -> bool:
+    if not origin:
+        return False
+    parsed = urlparse(origin)
+    return parsed.scheme == "https" and parsed.netloc.startswith("house-calc-api-") and parsed.netloc.endswith(".run.app")
+
+
+def _is_public_web_asset(path: str) -> bool:
+    return path == "/" or path == "/_expo/static/js/web/entry.js"
+
+
+def _is_frontend_route(path: str) -> bool:
+    return path in {
+        "/calculate/screenshot",
+        "/calculate/confirm",
+        "/calculate/chat",
+        "/calculate/result",
+        "/calculate/feedback",
+    }
+
+
 def _allow_anonymous_request(request: Request) -> bool:
     if request.url.path not in ANONYMOUS_COMPAT_PATHS:
         return False
 
     origin = _request_origin(request)
-    if origin in PUBLIC_BROWSER_ORIGINS:
+    if (
+        origin in PUBLIC_BROWSER_ORIGINS
+        or origin == _request_base_origin(request)
+        or _is_cloud_run_house_calc_origin(origin)
+    ):
         return True
 
     print(
@@ -223,7 +256,12 @@ async def _chat_completion_with_timeout(
 @app.middleware("http")
 async def auth_middleware(request: Request, call_next):
     """Require valid Google ID token for all endpoints except /health."""
-    if request.url.path == "/health" or request.method == "OPTIONS":
+    if (
+        _is_public_web_asset(request.url.path)
+        or _is_frontend_route(request.url.path)
+        or request.url.path == "/health"
+        or request.method == "OPTIONS"
+    ):
         return await call_next(request)
 
     email = await verify_google_token(request)
@@ -324,6 +362,21 @@ class CostResult(BaseModel):
 
 
 # ── Endpoints ──────────────────────────────────────────────────────
+
+
+@app.get("/", include_in_schema=False)
+async def web_app():
+    return FileResponse(STATIC_INDEX)
+
+
+@app.get("/calculate/{path:path}", include_in_schema=False)
+async def web_calculate_routes(path: str):
+    return FileResponse(STATIC_INDEX)
+
+
+@app.get("/_expo/static/js/web/entry.js", include_in_schema=False)
+async def web_entry():
+    return FileResponse(STATIC_ENTRY, media_type="application/javascript")
 
 
 @app.get("/health")
